@@ -1,6 +1,6 @@
 ### Hi there 👋
 - 🔭 I’m currently working on SleepParalyza, a newly horror game made by iliketomoveit007 and me
-- 🌱 I’m currently learning JavaScript, HTML and developing websites generally.
+- 🌱 I’m currently learning JavaScript, HTML and developing websites generally
 - 😄 Pronouns: he/him
 <!--
 **MrAhmalo/mrahmalo** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
