@@ -5,7 +5,7 @@
 
 I am very interested in developing and making games. I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
 Also I love designing and scripting UI's in general but especially in Roblox. <br/>
-This is why I also started sellign them on Fiverr. <br/>
+This is why I also started selling them on Fiverr. <br/>
 <!--
 **MrAhmalo/mrahmalo** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
