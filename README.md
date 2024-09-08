@@ -1,7 +1,11 @@
 ### Hi there 👋
 - 🔭 I’m currently working on SleepParalyza, a newly horror game made by iliketomoveit007 and me
 - 🌱 I’m currently learning JavaScript, HTML and developing websites generally
-- 😄 Pronouns: he/him
+- 🔗 Visit my portfolio: https://portfolio.golegana.de
+
+I am very interested in developing and making games. I like learning new things and gaining new experience. 🌐🧑‍💻
+Also I love designing and scripting UI's in general but especially in Roblox.
+This is why I also started sellign them on Fiverr.
 <!--
 **MrAhmalo/mrahmalo** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
