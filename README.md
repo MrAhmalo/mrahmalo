@@ -3,9 +3,9 @@
 - 🌱 I’m currently learning JavaScript, HTML and developing websites generally
 - 🔗 Visit my portfolio: https://portfolio.golegana.de
 
-I am very interested in developing and making games. I like learning new things and gaining new experience. 🌐🧑‍💻
-Also I love designing and scripting UI's in general but especially in Roblox.
-This is why I also started sellign them on Fiverr.
+I am very interested in developing and making games. I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
+Also I love designing and scripting UI's in general but especially in Roblox. <br/>
+This is why I also started sellign them on Fiverr. <br/>
 <!--
 **MrAhmalo/mrahmalo** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
