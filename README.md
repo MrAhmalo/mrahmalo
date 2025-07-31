@@ -1,9 +1,9 @@
 ### Hi there 👋
-- 🔭 I’m currently working on SleepParalyza, a newly horror game made by iliketomoveit007 and me
-- 🌱 I’m currently learning JavaScript, HTML and developing websites generally
+- 🔭 I’m currently getting into the homebrew/jailbreak scene.
+- 🌱 Lately, I’ve been learning JavaScript and Java.
 - 🔗 Visit my portfolio: https://portfolio.golegana.de
 
-I am very interested in developing and making games. I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
+I am very interested in developing and exploring systems lile the PlayStation3. I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
 Also I love designing and scripting UI's in general but especially in Roblox. <br/>
 This is why I also started selling them on Fiverr. <br/>
 <!--
