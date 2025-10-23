@@ -1,0 +1,320 @@
+blueprint:
+  name: Automatisierte Update-Verwaltung
+  description: >-
+    Eine umfassende Automatisierung zur Verwaltung, Filterung und Installation von Updates
+    für Home Assistant Core, Add-ons, Integrationen und mehr.
+    Inklusive automatischer Backups, detaillierter Benachrichtigungen und intelligenter Neustart-Logik.
+  domain: automation
+  input:
+    # Auslöser
+    schedule_trigger:
+      name: Zeitplan für Updates
+      description: Wähle einen Helfer mit einem Zeitplan (schedule), wann die Updates gestartet werden sollen.
+      selector:
+        entity:
+          domain: schedule
+    
+    # Update-Filterung
+    update_exclusions:
+      name: Updates ausschließen
+      description: Wähle Update-Entitäten aus, die von dieser Automatisierung ignoriert werden sollen.
+      selector:
+        entity:
+          domain: update
+          multiple: true
+      default: {}
+
+    # Versionssprung-Filter
+    core_os_update_level:
+      name: Update-Stufe für Core & OS
+      description: Wähle, welche Art von Versionssprüngen für Core- und OS-Updates installiert werden sollen.
+      selector:
+        select:
+          options:
+            - label: Nur Patches (z.B. 2023.10.1 -> 2023.10.2)
+              value: 'patch'
+            - label: Patches und Minor-Updates (z.B. 2023.10.x -> 2023.11.0)
+              value: 'minor'
+            - label: Alle (Major, Minor, Patches)
+              value: 'all'
+      default: 'patch'
+
+    firmware_update_level:
+      name: Update-Stufe für Firmware
+      description: Wähle, welche Art von Versionssprüngen für Firmware-Updates installiert werden sollen.
+      selector:
+        select:
+          options:
+            - label: Nur Patches
+              value: 'patch'
+            - label: Patches und Minor-Updates
+              value: 'minor'
+            - label: Alle
+              value: 'all'
+      default: 'minor'
+
+    general_update_level:
+      name: Update-Stufe für allgemeine Updates
+      description: Wähle, welche Art von Versionssprüngen für Add-ons, Integrationen etc. installiert werden sollen.
+      selector:
+        select:
+          options:
+            - label: Nur Patches
+              value: 'patch'
+            - label: Patches und Minor-Updates
+              value: 'minor'
+            - label: Alle
+              value: 'all'
+      default: 'all'
+
+    # Pre-Update-Aktionen
+    create_backup:
+      name: Backup vor Updates erstellen
+      description: Erstellt ein vollständiges Backup von Home Assistant vor der Installation der Updates.
+      selector:
+        boolean:
+      default: true
+      
+    max_backup_age_seconds:
+      name: Maximales Backup-Alter in Sekunden
+      description: Wenn ein Backup jünger ist als dieser Wert, wird kein neues erstellt (Standard: 43200s = 12 Stunden).
+      selector:
+        number:
+          min: 3600
+          max: 86400
+          unit_of_measurement: "Sekunden"
+      default: 43200
+
+    notify_device:
+      name: Benachrichtigungsgerät
+      description: Das Gerät, das Benachrichtigungen über den Update-Prozess erhält.
+      selector:
+        device:
+          integration: mobile_app
+          
+    # Sonstige/Optionale Funktionen
+    pause_entities:
+      name: Updates pausieren (Entitäten)
+      description: Wenn eine dieser Entitäten 'on' oder 'true' ist, wird das Update nicht gestartet.
+      selector:
+        entity:
+          domain:
+            - input_boolean
+            - binary_sensor
+          multiple: true
+      default: {}
+      
+    force_restart_for_hacs:
+      name: Neustart für HACS erzwingen
+      description: Erzwingt einen Neustart, wenn eine HACS-Integration aktualisiert wurde.
+      selector:
+        boolean:
+      default: true
+      
+    restart_type:
+      name: Neustart-Typ
+      description: Wähle die Art des Neustarts, der nach den Updates durchgeführt werden soll (falls erforderlich).
+      selector:
+        select:
+          options:
+            - label: Core Neustart
+              value: 'core'
+            - label: Host-Neustart (System)
+              value: 'host'
+      default: 'core'
+
+    verbose_logging_bool:
+      name: Detaillierte Protokollierung (Debugging)
+      description: Aktiviert zusätzliche Log-Einträge zur Fehlerbehebung.
+      selector:
+        boolean:
+      default: false
+
+variables:
+  # Eingabevariablen
+  schedule: !input schedule_trigger
+  exclusions: !input update_exclusions
+  core_os_level: !input core_os_update_level
+  firmware_level: !input firmware_update_level
+  general_level: !input general_update_level
+  create_backup: !input create_backup
+  max_backup_age: !input max_backup_age_seconds
+  notify_device: !input notify_device
+  pause_entities: !input pause_entities
+  force_restart_for_hacs: !input force_restart_for_hacs
+  restart_type: !input restart_type
+  verbose_logging: !input verbose_logging_bool
+
+  # Filterlogik für Updates
+  all_available_updates: >
+    {{ states.update 
+       | selectattr('state', 'eq', 'on') 
+       | map(attribute='entity_id') 
+       | reject('in', exclusions)
+       | list }}
+  
+  # Semantische Versionierungsprüfung (Helfer-Template)
+  is_allowed_update: >
+    {% macro is_allowed(installed, latest, level) %}
+      {% set installed_parts = installed.split('.') %}
+      {% set latest_parts = latest.split('.') %}
+      {% if installed_parts | length < 3 or latest_parts | length < 3 %}
+        {{ true }} {# Fallback für nicht-semantische Versionen #}
+      {% else %}
+        {% set i_major = installed_parts[0] | int %}
+        {% set i_minor = installed_parts[1] | int %}
+        {% set i_patch = installed_parts[2] | int %}
+        {% set l_major = latest_parts[0] | int %}
+        {% set l_minor = latest_parts[1] | int %}
+        {% set l_patch = latest_parts[2] | int %}
+
+        {% if level == 'patch' and i_major == l_major and i_minor == l_minor and i_patch < l_patch %}
+          {{ true }}
+        {% elif level == 'minor' and i_major == l_major and (i_minor < l_minor or (i_minor == l_minor and i_patch < l_patch)) %}
+          {{ true }}
+        {% elif level == 'all' %}
+          {{ true }}
+        {% else %}
+          {{ false }}
+        {% endif %}
+      {% endif %}
+    {% endmacro %}
+
+trigger:
+  - platform: time
+    at: "00:00:01"
+  - platform: homeassistant
+    event: start
+  - platform: event
+    event_type: automation_reloaded
+  - platform: state
+    entity_id: !input schedule_trigger
+    to: 'on'
+  - platform: state
+    entity_id: sensor.potential_updates # Erfordert einen Template-Sensor, der alle Updates zählt
+    from: '0'
+
+condition:
+  - condition: template
+    value_template: "{{ states(schedule) == 'on' }}"
+  - condition: template
+    value_template: "{{ expand(pause_entities) | selectattr('state', 'in', ['on', 'true']) | list | count == 0 }}"
+  - condition: template
+    value_template: "{{ all_available_updates | count > 0 }}"
+    
+action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: "{{ states.update | map(attribute='entity_id') | list }}"
+  - delay: '00:00:10' # Wartezeit, damit die Entitäten aktualisiert werden
+
+  - choose:
+      - conditions: "{{ verbose_logging }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: "Update-Automatisierung"
+              message: "Verfügbare Updates gefunden: {{ all_available_updates | join(', ') }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ create_backup }}"
+      - condition: template
+        value_template: >-
+          {% set last_backup = states.sensor.backup_state.attributes.last_backup %}
+          {% if last_backup is not none %}
+            {{ (now() - as_datetime(last_backup)).total_seconds() > max_backup_age }}
+          {% else %}
+            true
+          {% endif %}
+    then:
+      - service: notify.devices
+        data:
+          title: "Backup wird erstellt"
+          message: "Ein vollständiges Backup wird vor den Updates erstellt."
+          target: !input notify_device
+      - service: hassio.backup_full
+        data:
+          name: "Automatisches Backup vor Update {{ now().strftime('%Y-%m-%d') }}"
+      - delay: '00:01:00' # Wartezeit nach Backup-Start
+
+  - service: notify.devices
+    data:
+      title: "Updates werden gestartet"
+      message: "Die Installation der folgenden Updates beginnt: {{ all_available_updates | join(', ') }}"
+      target: !input notify_device
+
+  - variables:
+      hacs_update_done: false
+
+  - repeat:
+      for_each: "{{ all_available_updates }}"
+      sequence:
+        - variables:
+            entity: "{{ repeat.item }}"
+            installed_version: "{{ state_attr(entity, 'installed_version') }}"
+            latest_version: "{{ state_attr(entity, 'latest_version') }}"
+            allowed: >-
+              {% set level = 'general' %}
+              {% if 'core' in entity or 'operating_system' in entity %}
+                {% set level = core_os_level %}
+              {% elif 'firmware' in entity %}
+                {% set level = firmware_level %}
+              {% endif %}
+              {{ is_allowed(installed_version, latest_version, level) }}
+              
+        - if:
+            - condition: template
+              value_template: "{{ allowed | bool }}"
+          then:
+            - choose:
+                - conditions: "{{ verbose_logging }}"
+                  sequence:
+                    - service: persistent_notification.create
+                      data:
+                        title: "Update wird installiert"
+                        message: "Installiere {{ entity }} (von {{ installed_version }} auf {{ latest_version }})"
+            
+            - service: update.install
+              target:
+                entity_id: "{{ entity }}"
+              data:
+                backup: false # Backup wurde bereits erstellt
+            - wait_for_template:
+                template: "{{ states(entity) == 'off' }}"
+                timeout:
+                  hours: 1
+              continue_on_timeout: true
+
+            - if:
+                - condition: template
+                  value_template: "{{ 'hacs' in entity and force_restart_for_hacs }}"
+              then:
+                - variables:
+                    hacs_update_done: true
+
+  # Neustart-Logik
+  - delay: '00:00:30' # Kurze Pause vor der Neustart-Prüfung
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ hacs_update_done }}"
+        sequence:
+          - service: notify.devices
+            data:
+              title: "Neustart erforderlich"
+              message: "Ein Neustart ist nach der HACS-Aktualisierung erforderlich und wird durchgeführt."
+              target: !input notify_device
+          - choose:
+              - conditions: "{{ restart_type == 'host' }}"
+                sequence:
+                  - service: hassio.host_reboot
+              - conditions: "{{ restart_type == 'core' }}"
+                sequence:
+                  - service: homeassistant.restart
+    default:
+      - service: notify.devices
+        data:
+          title: "Updates abgeschlossen"
+          message: "Alle Updates wurden erfolgreich installiert. Kein Neustart erforderlich."
+          target: !input notify_device
