@@ -85,11 +85,11 @@ blueprint:
           unit_of_measurement: "Sekunden"
       default: 43200
 
-    notify_service:
-      name: Benachrichtigungsdienst
-      description: Der Dienst, der Benachrichtigungen über den Update-Prozess erhält (z.B. notify.mobile_app_mein_handy).
+    notify_target:
+      name: Benachrichtigungs-Ziel
+      description: "Wähle ein Gerät oder einen Dienst aus, das/der Benachrichtigungen erhalten soll."
       selector:
-        service:
+        target:
 
     # Sonstige/Optionale Funktionen
     pause_entities:
@@ -140,7 +140,7 @@ variables:
   general_level: !input general_update_level
   create_backup: !input create_backup
   max_backup_age: !input max_backup_age_seconds
-  notify_service: !input notify_service
+  notify_target: !input notify_target
   pause_entities: !input pause_entities
   force_restart_for_hacs: !input force_restart_for_hacs
   restart_type: !input restart_type
@@ -177,13 +177,15 @@ action:
   - condition: template
     value_template: "{{ expand(pause_entities) | selectattr('state', 'in', ['on', 'true']) | list | count == 0 }}"
     
-  - choose:
-      - conditions: "{{ verbose_logging }}"
-        sequence:
-          - service: system_log.write
-            data:
-              level: info
-              message: "Update-Automatisierung: Verfügbare Updates gefunden: {{ all_available_updates | join(', ') }}"
+  - if:
+      - condition: "{{ verbose_logging }}"
+      - condition: template
+        value_template: "{{ notify_target is not none }}"
+    then:
+      - service: notify.notify
+        data:
+          message: "Update-Automatisierung: Verfügbare Updates gefunden: {{ all_available_updates | join(', ') }}"
+        target: !input notify_target
 
   - if:
       - condition: template
@@ -197,19 +199,21 @@ action:
             true
           {% endif %}
     then:
-      - service: "{{ notify_service }}"
+      - service: notify.notify
         data:
           title: "Backup wird erstellt"
           message: "Ein vollständiges Backup wird vor den Updates erstellt."
+        target: !input notify_target
       - service: hassio.backup_full
         data:
           name: "Automatisches Backup vor Update {{ now().strftime('%Y-%m-%d') }}"
       - delay: '00:01:00'
 
-  - service: "{{ notify_service }}"
+  - service: notify.notify
     data:
       title: "Updates werden gestartet"
       message: "Die Installation der folgenden Updates beginnt: {{ all_available_updates | join(', ') }}"
+    target: !input notify_target
 
   - repeat:
       for_each: "{{ all_available_updates }}"
@@ -218,10 +222,16 @@ action:
             entity: "{{ repeat.item }}"
             installed_version: "{{ state_attr(entity, 'installed_version') }}"
             latest_version: "{{ state_attr(entity, 'latest_version') }}"
-        - service: system_log.write
-          data:
-            level: info
-            message: "Installiere {{ entity }} (von {{ installed_version }} auf {{ latest_version }})"
+        - if:
+            - condition: "{{ verbose_logging }}"
+            - condition: template
+              value_template: "{{ notify_target is not none }}"
+          then:
+            - service: notify.notify
+              data:
+                title: "Update wird installiert"
+                message: "Installiere {{ entity }} (von {{ installed_version }} auf {{ latest_version }})"
+              target: !input notify_target
         - service: update.install
           target:
             entity_id: "{{ entity }}"
@@ -236,9 +246,8 @@ action:
             - condition: template
               value_template: "{{ 'hacs' in entity and force_restart_for_hacs }}"
           then:
-            -- script:
-                set_hacs_update_done:
-                  hacs_update_done: true
+            - variables:
+                hacs_update_done: true
 
   - delay: '00:00:30'
   
@@ -246,10 +255,11 @@ action:
       - condition: template
         value_template: "{{ hacs_update_done }}"
     then:
-      - service: "{{ notify_service }}"
+      - service: notify.notify
         data:
           title: "Neustart erforderlich"
           message: "Ein Neustart ist nach der HACS-Aktualisierung erforderlich und wird durchgeführt."
+        target: !input notify_target
       - choose:
           - conditions: "{{ restart_type == 'host' }}"
             sequence:
@@ -258,7 +268,8 @@ action:
             sequence:
               - service: homeassistant.restart
     else:
-      - service: "{{ notify_service }}"
+      - service: notify.notify
         data:
           title: "Updates abgeschlossen"
           message: "Alle Updates wurden erfolgreich installiert. Kein Neustart erforderlich."
+        target: !input notify_target
