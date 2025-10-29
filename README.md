@@ -1,9 +1,9 @@
 ### Hi there 👋
-- 🔭 I’m currently getting into the homebrew/jailbreak scene.
+- 🔭 I’m currently getting into the HomeAssistant/SmartHome scene.
 - 🌱 Lately, I’ve been learning JavaScript and Java.
 - 🔗 Visit my portfolio: https://portfolio.golegana.de
 
-I am very interested in developing and exploring systems like the PlayStation3. I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
+I like learning new things and gaining new experience. 🌐🧑‍💻 <br/>
 Also I love designing and scripting UI's in general but especially in Roblox. <br/>
 This is why I also started selling them on Fiverr. <br/>
 <!--
